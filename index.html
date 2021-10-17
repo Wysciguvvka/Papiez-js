@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<link rel="preconnect">
+
+		<title>Watykan</title>
+		<style>
+			body { margin: 0; }
+			.render{
+				margin: 0px auto;
+			}
+		</style>
+		<script src="js/stats.min.js"></script>
+		<script type="text/javascript" src="js/dat.gui.min.js"></script>
+	</head>
+	<body>
+		
+		
+		<script type="module">
+			// Three
+			import { Scene } from './build/three.module.js';
+			import { PerspectiveCamera } from './build/three.module.js';
+			import { HemisphereLight } from './build/three.module.js';
+			import { TextureLoader } from './build/three.module.js';
+			import { FogExp2 } from './build/three.module.js';
+			import { WebGLRenderer } from './build/three.module.js';
+			import { CircleGeometry } from './build/three.module.js';
+			import { PlaneGeometry } from './build/three.module.js';
+			import { SphereGeometry } from './build/three.module.js';
+			import { BufferGeometry } from './build/three.module.js';
+			import { BoxGeometry } from './build/three.module.js';
+			import { PointsMaterial } from './build/three.module.js';
+			import { MeshLambertMaterial } from './build/three.module.js';
+			import { MeshBasicMaterial } from './build/three.module.js';
+			import { MeshStandardMaterial } from './build/three.module.js';
+			import { MeshPhongMaterial } from './build/three.module.js';
+			import { ShadowMaterial } from './build/three.module.js';
+			import { Mesh } from './build/three.module.js';
+			import { Color } from './build/three.module.js';
+			import { Points } from './build/three.module.js';
+			import { PMREMGenerator } from './build/three.module.js';
+			import { TOUCH } from './build/three.module.js';
+			import { Vector3 } from './build/three.module.js';
+			import { Vector2 } from './build/three.module.js';
+			import { RepeatWrapping  } from './build/three.module.js';
+			import { BackSide  } from './build/three.module.js';
+			import { Float32BufferAttribute  } from './build/three.module.js';
+			import { DirectionalLight  } from './build/three.module.js';
+			import { AmbientLight  } from './build/three.module.js';
+			import { BasicShadowMap  } from './build/three.module.js';
+			import { PointLight  } from './build/three.module.js';
+			import { PCFShadowMap  } from './build/three.module.js';
+			import { ShaderMaterial  } from './build/three.module.js';
+			import { AudioListener  } from './build/three.module.js';
+			import { Audio } from './build/three.module.js';
+			import { AudioLoader } from './build/three.module.js';
+			
+			
+			// OrbitControls
+			import { OrbitControls } from './jsm/OrbitControls.js';
+			// STLLoader
+			import { STLLoader } from './jsm/STLLoader.js';
+			// water
+			import { Water } from './jsm/Water.js';
+			// sky
+			import { Sky } from './jsm/Sky.js';
+			
+			// rzeczy
+			
+			// scene, camera
+			const scene = new Scene();
+			scene.background = new Color( 0xf8f8ff );
+			scene.fog = new FogExp2(0xce4993,  0.00014)
+			const camera = new PerspectiveCamera( 90, 1, 0.01, 15000 );
+			camera.position.set( 0, 0, 0);
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			const loader = new TextureLoader();
+			
+			// audio
+			const listener = new AudioListener();
+			const audioLoader = new AudioLoader();
+			
+			
+			// renderer
+			const renderer = new WebGLRenderer({antialias: true, autoclear: true });
+			renderer.setClearColor(new Color(0xf7f7ff));
+			renderer.setSize( window.innerWidth, window.innerHeight);
+			document.body.appendChild( renderer.domElement );
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.Soft = true;
+			renderer.shadowMap.Width = 2048;
+			renderer.shadowMap.Height = 2048;
+			renderer.shadowMap.type = PCFShadowMap;
+			renderer.domElement.classList.add("render");
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			
+			// controls
+			let controls = new OrbitControls( camera, renderer.domElement );
+			controls.enablePan = false;
+			controls.rotateSpeed = .2;
+			controls.maxPolarAngle = Math.PI * 0.495;
+			controls.target.set( 0, 10, 0 );
+			controls.minDistance = 40.0;
+			controls.maxDistance = 200.0;
+			controls.update();
+			controls.touches = {
+				ONE: TOUCH.ROTATE,
+			}
+			
+			renderer.render( scene, camera );
+			
+			
+			const stlLoader = new STLLoader();
+			let papiezMaterial, waterMat, geometry, papiez;
+			
+			function initPapor() {
+			  return new Promise(resolve => {
+				stlLoader.load( './textures/papiez.stl', function ( geometry ) {
+				papiezMaterial = new MeshPhongMaterial( { color: 0xff5533, specular: 0x111111, shininess: 200, color: 0xffff00 } );
+					if ( geometry.hasColors ) {
+						papiezMaterial = new MeshPhongMaterial( { opacity: geometry.alpha, vertexColors: true} );
+					}
+				papiez = new Mesh( geometry, papiezMaterial );
+				papiez.name = "papiez";
+				papiez.position.set( 0.5, -28.5, 0 );
+				papiez.rotation.set( -Math.PI/2, 0, Math.PI*3.3/9 );
+				papiez.scale.set( 1, 1, 1 );
+				papiez.castShadow = true;
+				papiez.receiveShadow = true;
+				papiez.name = "pavulon";
+				scene.add( papiez );
+				resolve(papiez);
+				});	
+				
+			  });
+			}
+			
+			
+			function initWater() {
+			  return new Promise(resolve => {
+				waterMat = new TextureLoader().load( './textures/water.png', function ( texture ) {
+					texture.wrapS = texture.wrapT = RepeatWrapping;
+				});
+				resolve(waterMat);
+			  });
+			}
+			let snowTexture, rainTexture;
+			function initWeather() {
+				return new Promise(resolve => {
+					snowTexture = loader.load('./textures/particle.png');
+					rainTexture = loader.load('./textures/rain.png');
+					resolve(snowTexture, rainTexture);
+				});
+			}
+			let rainLoop, rainLoad;
+			function initAudio() {
+				return new Promise(resolve => {
+				rainLoop = new Audio( listener );
+				rainLoad = audioLoader.load( './sounds/rain_outdoor_loop.wav', function( buffer ) {		
+					rainLoop.setBuffer( buffer );
+					rainLoop.setLoop( true );
+					rainLoop.setVolume( 0.55 );
+				});
+				resolve(rainLoad);
+				});
+			}
+			
+			async function main() {
+			
+			// loading
+			const resultPapa = await initPapor();
+			const resultWater = await initWater();
+			const resultWeather = await initWeather();
+			const resultAudio = await initAudio();
+			
+			// finished
+			// fps
+			let stats = new Stats();
+			stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+			document.body.appendChild( stats.dom );
+			
+			// light
+			let hemiLight = new HemisphereLight( 0xccccff, 0x6666ff, 1.3);
+			hemiLight.position.set(0, 100, 0)
+			scene.add(hemiLight);
+			let pointLight = new PointLight(0xfffff, 0, 2);
+			pointLight.position.set(-600, 300, -285);
+			pointLight.castShadow = true;
+			pointLight.shadow.camera.near = .1;
+			pointLight.shadow.camera.far = 5000;
+			pointLight.shadow.mapSize.width = 2048;
+			pointLight.shadow.mapSize.height = 2048;
+			pointLight.shadow.radius = 12;
+			pointLight.shadow.normalBias  = 0.0001;
+			pointLight.shadow.Bias  = 0.0002;
+			scene.add(pointLight);
+			
+			// water
+	
+
+				let waterGeometry = new CircleGeometry( 6000, 500, 500 );
+				
+				let water = new Water(
+					waterGeometry,
+					{
+						textureWidth: 512,
+						textureHeight: 512,
+						waterNormals: waterMat,
+						alpha: 1.0,
+						sunDirection: new Vector3(),
+						sunColor: 0xffffff,
+						waterColor: 0x001e0f,
+						distortionScale: 2,
+						flowDirection: new Vector2( 20, 10 ),
+						fog: scene.fog !== undefined
+					}
+				);
+
+				water.rotation.x = - Math.PI / 2;
+				water.position.y = - 5;
+				water.receiveShadow = true;
+				scene.add( water );
+				function waterSurface(){
+					water.material.uniforms[ 'time' ].value += .5/60.0;
+				}
+			
+			// skybox
+			const skyGeo = new SphereGeometry( 7000, 300, 300 );
+			let skyTexture = loader.load( './textures/sky.jpg' );
+			let skyMat = new MeshBasicMaterial( { map: skyTexture, side: BackSide } );
+			const sky = new Mesh( skyGeo, skyMat );
+			sky.rotation.y = Math.PI*5/6;
+			scene.add( sky );
+			
+			let sun = new Vector3();
+
+				const parameters = {
+					inclination: 0.5,
+					azimuth: .7,
+					exposure: 1
+				};
+			const pmremGenerator = new PMREMGenerator( renderer );
+			function updateSun() {
+				sun.x = -1.7;
+				sun.z = -1;
+				water.material.uniforms[ 'sunDirection' ].value.copy( sun ).normalize();
+				scene.environment = pmremGenerator.fromScene( sky ).texture;
+			}
+			updateSun();
+			
+			// particles
+			
+			// snow
+			const snow = new BufferGeometry();
+			const vertices = [];
+			let vertex = new Vector3();
+			
+			let snowMat = new PointsMaterial({
+				map: snowTexture,
+				transparent: true,
+				color: 0xf8f8ff,
+				size: 6.5,
+				depthWrite : false
+				
+			});
+			let snowNum = 4000;
+			for ( let i = 0; i < snowNum; i++ ){
+				vertices.push(
+					Math.random() * 2000 - 1000, 
+					Math.random()*1000-150,
+					Math.random() * 2000 - 1000
+				);
+				
+			}
+			snow.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
+			let snowSystem = new Points( snow, snowMat );
+			snowSystem.sortParticles = true;
+			scene.add(snowSystem);
+			
+			function snowParticles() {
+				let positionAttribute = snowSystem.geometry.getAttribute( 'position' );
+				for ( let i = 0; i < positionAttribute.count; i++ ) {
+					vertex.fromBufferAttribute( positionAttribute, i );
+					vertex.x -= 0.01;
+					vertex.y -= 1.1;
+					vertex.z += 0.05;
+					if ( vertex.y < - 100 ) {
+						vertex.y = 900;
+						vertex.x = Math.random() * 2000 - 1000;
+						vertex.z = Math.random() * 2000 - 1000;
+					}
+					positionAttribute.setXYZ( i, vertex.x, vertex.y, vertex.z );
+				}
+				positionAttribute.needsUpdate = true;
+			}
+			
+			// rain
+			const rainNum = 5000;
+			const rainVertices = [];
+			let rain = new BufferGeometry();
+			let rainVertex = new Vector3();
+			for( let i = 0; i < rainNum; i++ ) {
+				rainVertices.push(
+					Math.random() * 1500 - 750, 
+					Math.random()*1000-150,
+					Math.random() * 1500 - 750
+				);
+			}
+			rain.setAttribute( 'position', new Float32BufferAttribute( rainVertices, 3 ) );
+			
+			let rainMat = new PointsMaterial({
+				map: rainTexture,
+				color: 0xf8f8ff ,
+				size: 2,
+				transparent: true,
+				depthWrite : false
+			});
+
+
+			let rainSystem = new Points(rain, rainMat);
+			scene.add(rainSystem);
+			rainSystem.visible = false;
+			
+			function rainParticles() {
+				let positionAttribute = rainSystem.geometry.getAttribute( 'position' );
+				for ( let i = 0; i < positionAttribute.count; i++ ) {
+					rainVertex.fromBufferAttribute( positionAttribute, i );
+					rainVertex.x -= .1;
+					rainVertex.y -= 6;
+					rainVertex.z += .2;
+					if ( rainVertex.y < - 100 ) {
+						rainVertex.y = Math.random()*1000-150;
+						rainVertex.x = Math.random() * 1500 - 750;
+						rainVertex.z = Math.random() * 1500 - 750;
+					}
+					positionAttribute.setXYZ( i, rainVertex.x, rainVertex.y, rainVertex.z );
+				}
+				positionAttribute.needsUpdate = true;
+			}
+			// gui
+			const gui = new dat.GUI();
+			
+			// render
+			renderer.render( scene, camera );
+			// gui
+			var guiOptions = {
+				rain: false,
+				snow: true,
+				audio: true,
+			};
+
+			// dat.gui rzeczy (papiez jest w papiezu)
+			
+			let toggleSnow = function snowToggle(x){
+				if(guiOptions.rain == true){
+					guiOptions.rain = false;
+					rainSystem.visible = false;
+				}
+				rainLoop.stop();
+				snowSystem.visible = x;
+			}
+			let toggleRain = function rainToggle(x){
+				if(guiOptions.snow == true){
+					guiOptions.snow = false;
+					snowSystem.visible = false;
+				}
+				rainSystem.visible = x;
+				if(x){
+				if(guiOptions['audio'] == true && guiOptions['rain'] == true && guiOptions['snow'] == false && rainLoop.isPlaying == false){
+						rainLoop.play();
+					}
+					else{
+						rainLoop.stop();
+					}
+				}
+				else{
+					rainLoop.stop();
+				}
+			}
+			let weatherBox = gui.addFolder('Pogoda');
+			let snowCheckBox = weatherBox.add(guiOptions, 'snow', true, false).name('Śnieg').listen().onChange(toggleSnow);
+			let rainCheckBox = weatherBox.add(guiOptions, 'rain', false, true).name('Deszcz').listen().onChange(toggleRain);	
+			weatherBox.open();
+			// papiezgui
+				
+				let papaj = {
+					x: 1,
+					rotation: 0,
+					zycie: true,
+				};
+				let szkalowanie = function(x){
+					papiez.scale.set( x, x, x );
+				}
+				let zamachNaPapieza = function(agca){
+					papiez.visible = agca;
+				}
+				let rotatePapor = function(x){
+					papiez.rotation.set( -Math.PI/2, 0, Math.PI*3.3/9 + x*Math.PI/180 );
+				}
+				let papiezBox = gui.addFolder('Najwiekszy polski papiez');
+			
+				papiezBox.add( papaj, 'x', .3, 2.137 ).name( 'Szkalowanie' ).onChange( szkalowanie );
+				papiezBox.add( papaj, 'rotation', -720, 720 ).name( 'Obrut' ).onChange( rotatePapor );
+				papiezBox.add( papaj, 'zycie', true, false ).name( 'Je kremówki?' ).onChange( zamachNaPapieza )
+				papiezBox.open();
+			
+			// audio
+			let audioBox = gui.addFolder('Audio');
+			let toggleAudio = function audioToggle(){
+				
+					if(guiOptions['audio'] == true && guiOptions['rain'] == true && guiOptions['snow'] == false && rainLoop.isPlaying == false){
+						rainLoop.play();
+					}
+					else{
+						rainLoop.stop();
+					}
+			}
+			audioBox.add(guiOptions, 'audio', true, false).name('Audio').listen().onChange(toggleAudio);
+			audioBox.open();
+			
+			/*
+			audioLoader.load( './sounds/rain_outdoor_loop.wav', function( buffer ) {		
+				rainLoop.setBuffer( buffer );
+				rainLoop.setLoop( true );
+				rainLoop.setVolume( 0.5 );
+			
+				let audioBox = gui.addFolder('Audio');
+				let toggleAudio = function audioToggle(){
+				
+					if(guiOptions['audio'] == true && guiOptions['rain'] == true && guiOptions['snow'] == false && rainLoop.isPlaying == false){
+						rainLoop.play();
+					}
+					else{
+						rainLoop.stop();
+					}
+				}
+				function snowChange(x){
+					toggleSnow(x);
+					toggleAudio();
+				}
+				function rainChange(x){
+					toggleRain(x);
+					toggleAudio();
+				}
+				snowCheckBox.listen().onChange(snowChange);
+				rainCheckBox.listen().onChange(rainChange);
+				audioBox.add(guiOptions, 'audio', true, false).name('Audio').listen().onChange(toggleAudio);	
+				audioBox.open();
+				
+			});
+			*/
+			// animate
+			function animate() {
+				requestAnimationFrame( animate );
+				renderer.render( scene, camera );
+				waterSurface();
+				if(snowSystem.visible == true){
+					snowParticles();
+				}
+				if(rainSystem.visible == true){
+					rainParticles();
+				}
+				stats.update();
+			}
+			animate();
+			
+			// resize
+			window.addEventListener( 'resize', onWindowResize, false );
+			function onWindowResize(){
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+			}
+			}
+
+			main();
+		</script>
+	</body>
+</html>
