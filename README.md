@@ -1,3 +1,2 @@
 # Papajak watykaniak
-stary projekt moze kiedys go naprawie
-moze sie bugowac
+jan pawel drugi papuez
